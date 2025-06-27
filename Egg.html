@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Egg Timer</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      width: 100%;
+      background: #f5f5f5;
+      font-family: Arial, sans-serif;
+    }
+    .container {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      height: 100%;
+      width: 100%;
+      background: white;
+    }
+    h2 {
+      margin-top: 0;
+    }
+    select, button {
+      padding: 10px;
+      font-size: 16px;
+      margin-top: 15px;
+      width: 200px;
+    }
+    .hidden {
+      display: none;
+    }
+    .timer-circle {
+      position: relative;
+      width: 200px;
+      height: 200px;
+      margin: 20px auto;
+    }
+    .timer-circle svg {
+      transform: rotate(-90deg);
+    }
+    .timer-circle circle {
+      fill: none;
+      stroke-width: 10;
+    }
+    .timer-circle .background {
+      stroke: #eee;
+    }
+    .timer-circle .progress {
+      stroke: #3498db;
+      stroke-linecap: round;
+      stroke-dasharray: 565.48;
+      stroke-dashoffset: 0;
+      transition: stroke-dashoffset 0.2s linear;
+    }
+    .time-text {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 24px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Egg Timer</h2>
+    
+    <!-- Step 1 -->
+    <div id="step1">
+      <label for="softness">Select Egg Softness</label>
+      <select id="softness">
+        <option value="soft">Soft</option>
+        <option value="medium">Medium</option>
+        <option value="hard">Hard</option>
+      </select>
+      <button id="next">Next</button>
+    </div>
+    
+    <!-- Step 2 -->
+    <div id="step2" class="hidden">
+      <p>You selected: <span id="selectedSoftness"></span></p>
+      <button id="start">Start Timer</button>
+    </div>
+    
+    <!-- Step 3 -->
+    <div id="step3" class="hidden">
+      <div class="timer-circle">
+        <svg width="200" height="200">
+          <circle class="background" cx="100" cy="100" r="90"/>
+          <circle class="progress" cx="100" cy="100" r="90"/>
+        </svg>
+        <div class="time-text" id="timeDisplay">0</div>
+      </div>
+    </div>
+    
+  </div>
+  <script>
+    // real egg cooking times in seconds
+    const timeMap = {
+      soft: 300,   // 5 minutes
+      medium: 420, // 7 minutes
+      hard: 600    // 10 minutes
+    };
+    
+    const nextButton = document.getElementById('next');
+    const startButton = document.getElementById('start');
+    const softnessSelect = document.getElementById('softness');
+    const selectedSoftnessSpan = document.getElementById('selectedSoftness');
+    const timeDisplay = document.getElementById('timeDisplay');
+    const progressCircle = document.querySelector('.progress');
+    const step1 = document.getElementById('step1');
+    const step2 = document.getElementById('step2');
+    const step3 = document.getElementById('step3');
+    
+    let timerInterval;
+    const radius = 90;
+    const circumference = 2 * Math.PI * radius;
+    
+    progressCircle.style.strokeDasharray = circumference;
+    progressCircle.style.strokeDashoffset = 0;
+    
+    let selectedSoftness;
+    
+    nextButton.addEventListener('click', () => {
+      selectedSoftness = softnessSelect.value;
+      selectedSoftnessSpan.textContent = selectedSoftness;
+      step1.classList.add('hidden');
+      step2.classList.remove('hidden');
+    });
+    
+    startButton.addEventListener('click', () => {
+      const duration = timeMap[selectedSoftness];
+      let timeLeft = duration;
+      
+      step2.classList.add('hidden');
+      step3.classList.remove('hidden');
+      
+      timeDisplay.textContent = formatTime(timeLeft);
+      progressCircle.style.strokeDashoffset = 0;
+      
+      timerInterval = setInterval(() => {
+        timeLeft -= 1;
+        if (timeLeft <= 0) {
+          clearInterval(timerInterval);
+          timeDisplay.textContent = '0:00';
+          progressCircle.style.strokeDashoffset = circumference;
+          playQuadrupleBeeps();
+        } else {
+          timeDisplay.textContent = formatTime(timeLeft);
+          const offset = circumference * (1 - timeLeft / duration);
+          progressCircle.style.strokeDashoffset = offset;
+        }
+      }, 1000);
+    });
+
+    function formatTime(seconds) {
+      const min = Math.floor(seconds / 60);
+      const sec = seconds % 60;
+      return `${min}:${sec.toString().padStart(2, '0')}`;
+    }
+
+    // BASED EXACTLY ON YOUR FUNCTION with group-count and 1s delay after 3 groups
+    function playQuadrupleBeeps() {
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      let groupCounter = 0;
+      
+      function playBeepGroup(count, onComplete) {
+        let beepCount = 0;
+        function beep() {
+          if (beepCount >= 4) {
+            onComplete();
+            return;
+          }
+          const duration = 0.05;
+          const now = audioCtx.currentTime;
+          
+          const osc1 = audioCtx.createOscillator();
+          const osc2 = audioCtx.createOscillator();
+          const gainNode = audioCtx.createGain();
+          
+          osc1.type = 'sawtooth';
+          osc2.type = 'sine';
+          osc1.frequency.value = 1000;
+          osc2.frequency.value = 1000;
+          
+          gainNode.gain.setValueAtTime(0.2, now);
+          
+          osc1.connect(gainNode);
+          osc2.connect(gainNode);
+          gainNode.connect(audioCtx.destination);
+          
+          osc1.start(now);
+          osc2.start(now);
+          osc1.stop(now + duration);
+          osc2.stop(now + duration);
+          
+          beepCount++;
+          setTimeout(beep, 120); // 120 ticks
+        }
+        beep();
+      }
+      
+      function repeatPattern() {
+        playBeepGroup(4, () => {
+          groupCounter++;
+          if (groupCounter >= 3) {
+            groupCounter = 0;
+            setTimeout(() => {
+              repeatPattern();
+            }, 1000); // 1 second after third group
+          } else {
+            setTimeout(() => {
+              repeatPattern();
+            }, 500); // 20 tick delay between groups
+          }
+        });
+      }
+      repeatPattern();
+    }
+  </script>
+</body>
+</html>
