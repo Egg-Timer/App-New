@@ -1,7 +1,7 @@
 {
   "name": "Egg timer",
   "short_name": "Egg timer",
-  "start_url": "./",
+  "start_url": "/App/",
   "display": "standalone",
   "background_color": "#25193e",
   "theme_color": "#25193e",
