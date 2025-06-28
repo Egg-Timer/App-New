@@ -7,6 +7,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="manifest" href="/App/manifest.webmanifest">
   <meta name="theme-color" content="#25193e">
+  <script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js')
+      .catch(err => console.warn('SW failed', err));
+  }
+</script>
+
   <style>
     html, body {
       margin: 0;
@@ -255,11 +262,6 @@
       });
     }
     repeatPattern();
-  }
-    if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/App/sw.js')
-      .then(reg => console.log('SW registered', reg))
-      .catch(err => console.error('SW registration failed', err));
   }
 </script>
 
