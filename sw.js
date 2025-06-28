@@ -1,8 +1,8 @@
 const CACHE_NAME = 'egg-timer-cache-v1';
 const ASSETS = [
   '/',
-  '/index.html',
-  '/favicon.png'
+  '/App/index.html',
+  '/App/favicon.png'
 ];
 
 self.addEventListener('install', event => {
