@@ -50,6 +50,17 @@
       box-sizing: border-box;
     }
 
+    .notification-warning {
+      background: #ffcccc;
+      color: #990000;
+      padding: 10px;
+      margin: 10px 0;
+      border: 1px solid #990000;
+      border-radius: 4px;
+      max-width: 300px;
+      text-align: center;
+    }
+
     label {
       display: block;
       margin-bottom: 8px;
@@ -207,6 +218,11 @@
     </div>
     <div class="app-content">
 
+      <!-- Notification warning -->
+      <div class="notification-warning hidden" id="notificationWarning">
+        Please enable notifications for timer alerts.
+      </div>
+
       <!-- Step 1 -->
       <div id="step1">
         <label for="softness">Choose your preferred egg consistency:</label>
@@ -262,6 +278,7 @@
     const customSliderContainer = document.getElementById('customSliderContainer');
     const customSlider = document.getElementById('customSlider');
     const customSliderValue = document.getElementById('customSliderValue');
+    const notificationWarning = document.getElementById('notificationWarning');
 
     let timerInterval;
     let wakeLock = null;
@@ -273,6 +290,21 @@
 
     let selectedSoftness;
     let customTime = 300;
+
+    // Notification check
+    document.addEventListener("DOMContentLoaded", () => {
+      if ("Notification" in window) {
+        if (Notification.permission === "default") {
+          Notification.requestPermission().then(permission => {
+            if (permission !== "granted") {
+              notificationWarning.classList.remove("hidden");
+            }
+          });
+        } else if (Notification.permission === "denied") {
+          notificationWarning.classList.remove("hidden");
+        }
+      }
+    });
 
     softnessSelect.addEventListener('change', () => {
       if (softnessSelect.value === "custom") {
@@ -330,6 +362,14 @@
           progressCircle.style.strokeDashoffset = circumference;
 
           playQuadrupleBeeps();
+
+          // fire a notification
+          if (Notification.permission === "granted") {
+            new Notification("Egg Timer", {
+              body: "Your timer is finished!",
+              icon: "favicon.png"
+            });
+          }
 
           if (wakeLock) {
             wakeLock.release().then(() => {
