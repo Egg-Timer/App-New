@@ -14,7 +14,7 @@
       padding: 0;
       height: 100%;
       width: 100%;
-      background: #f0f2f5;
+      background: linear-gradient(135deg, #f0f2f5, #d5d8de);
       font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
       color: #333;
       overflow: hidden;
@@ -26,6 +26,8 @@
       height: 100%;
       width: 100%;
       background: white;
+      border-radius: 10px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
     }
 
     .app-title {
@@ -211,6 +213,19 @@
       font-weight: bold;
       color: #25193e;
     }
+
+    .fade-in {
+      animation: fadeIn 0.5s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    #stopBeep {
+      margin-top: 20px;
+    }
   </style>
 </head>
 <body>
@@ -254,9 +269,10 @@
             <circle class="background" cx="100" cy="100" r="90"/>
             <circle class="progress" cx="100" cy="100" r="90"/>
           </svg>
-          <div class="time-text" id="timeDisplay">0</div>
-        </div>
+        <div class="time-text" id="timeDisplay">0</div>
       </div>
+      <button id="stopBeep" class="hidden">Stop</button>
+    </div>
 
     </div>
   </div>
@@ -277,6 +293,7 @@
     const step1 = document.getElementById('step1');
     const step2 = document.getElementById('step2');
     const step3 = document.getElementById('step3');
+    const stopBeepButton = document.getElementById('stopBeep');
     const customSliderContainer = document.getElementById('customSliderContainer');
     const customSlider = document.getElementById('customSlider');
     const customSliderValue = document.getElementById('customSliderValue');
@@ -284,6 +301,7 @@
 
     let timerInterval;
     let wakeLock = null;
+    let stopBeepingFn = null;
     const radius = 90;
     const circumference = 2 * Math.PI * radius;
 
@@ -292,6 +310,26 @@
 
     let selectedSoftness;
     let customTime = 300;
+
+    function showElement(el) {
+      el.classList.remove('hidden');
+      el.classList.add('fade-in');
+      setTimeout(() => el.classList.remove('fade-in'), 500);
+    }
+
+    function hideElement(el) {
+      el.classList.add('hidden');
+    }
+
+    stopBeepButton.addEventListener('click', () => {
+      if (stopBeepingFn) {
+        stopBeepingFn();
+        stopBeepingFn = null;
+      }
+      hideElement(step3);
+      hideElement(stopBeepButton);
+      showElement(step1);
+    });
 
     // Notification check
     document.addEventListener("DOMContentLoaded", () => {
@@ -328,8 +366,8 @@
       } else {
         selectedSoftnessSpan.textContent = selectedSoftness;
       }
-      step1.classList.add('hidden');
-      step2.classList.remove('hidden');
+      hideElement(step1);
+      showElement(step2);
     });
 
     startButton.addEventListener('click', async () => {
@@ -341,8 +379,8 @@
       }
       let timeLeft = duration;
 
-      step2.classList.add('hidden');
-      step3.classList.remove('hidden');
+      hideElement(step2);
+      showElement(step3);
 
       timeDisplay.textContent = formatTime(timeLeft);
       progressCircle.style.strokeDashoffset = 0;
@@ -356,6 +394,8 @@
         console.warn('Wake Lock not available:', err);
       }
 
+      stopBeepButton.classList.add('hidden');
+
       timerInterval = setInterval(() => {
         timeLeft -= 1;
         if (timeLeft <= 0) {
@@ -363,7 +403,8 @@
           timeDisplay.textContent = '0:00';
           progressCircle.style.strokeDashoffset = circumference;
 
-          playQuadrupleBeeps();
+          stopBeepingFn = playQuadrupleBeeps();
+          showElement(stopBeepButton);
 
           // fire a notification
           if (Notification.permission === "granted") {
@@ -395,56 +436,51 @@
 
     function playQuadrupleBeeps() {
       const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      let groupCounter = 0;
+      let stopped = false;
+      let loopTimeout;
 
-      function playBeepGroup(count, onComplete) {
-        let beepCount = 0;
-        function beep() {
-          if (beepCount >= 4) {
-            onComplete();
-            return;
-          }
-          const duration = 0.05;
-          const now = audioCtx.currentTime;
+      function beep(delay) {
+        const duration = 0.05;
+        const now = audioCtx.currentTime + delay;
 
-          const osc1 = audioCtx.createOscillator();
-          const osc2 = audioCtx.createOscillator();
-          const gainNode = audioCtx.createGain();
+        const osc1 = audioCtx.createOscillator();
+        const osc2 = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
 
-          osc1.type = 'sawtooth';
-          osc2.type = 'sine';
-          osc1.frequency.value = 1000;
-          osc2.frequency.value = 1000;
+        osc1.type = 'sawtooth';
+        osc2.type = 'sine';
+        osc1.frequency.value = 1000;
+        osc2.frequency.value = 1000;
 
-          gainNode.gain.setValueAtTime(0.2, now);
+        gainNode.gain.setValueAtTime(0.2, now);
 
-          osc1.connect(gainNode);
-          osc2.connect(gainNode);
-          gainNode.connect(audioCtx.destination);
+        osc1.connect(gainNode);
+        osc2.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
 
-          osc1.start(now);
-          osc2.start(now);
-          osc1.stop(now + duration);
-          osc2.stop(now + duration);
-
-          beepCount++;
-          setTimeout(beep, 120);
-        }
-        beep();
+        osc1.start(now);
+        osc2.start(now);
+        osc1.stop(now + duration);
+        osc2.stop(now + duration);
       }
 
-      function repeatPattern() {
-        playBeepGroup(4, () => {
-          groupCounter++;
-          if (groupCounter >= 3) {
-            groupCounter = 0;
-            setTimeout(() => repeatPattern(), 1000);
-          } else {
-            setTimeout(() => repeatPattern(), 500);
-          }
-        });
+      function playPattern() {
+        [0,0.12,0.24,0.36].forEach(d => beep(d));
       }
-      repeatPattern();
+
+      function loop() {
+        if (stopped) return;
+        playPattern();
+        loopTimeout = setTimeout(loop, 1000);
+      }
+
+      loop();
+
+      return () => {
+        stopped = true;
+        clearTimeout(loopTimeout);
+        audioCtx.close();
+      };
     }
   </script>
 </body>
